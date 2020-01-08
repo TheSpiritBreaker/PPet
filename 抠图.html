@@ -1,92 +1,119 @@
 <h3>选择图像</h3>
-<input type = "file" id="source">
-<input type = "file" id="mask">
-<input type = "button" id="upload_button" value="test">
+<input type="file" id="source" />
+<input type="file" id="mask" />
+<input type="button" id="upload_button" value="test" />
 <h3>绘制mask</h3>
-<img id="source_preview" src="" height="200" alt="Image preview.../">
-<input type = "checkbox" id="brush">red
+<img id="source_preview" src="" height="200" alt="Image preview.../" />
+<input type="checkbox" id="brush" />red
 <canvas id="canvas"></canvas>
 <pre id="console"></pre>
 <script>
-function console_log(string){
-    console.log(string)
-    document.getElementById("console").innerText += string + '\n'
-}
+  function console_log(string) {
+    console.log(string);
+    document.getElementById("console").innerText += string + "\n";
+  }
 
-window.addEventListener("paste", (event) => {
-    console.log(event)
+  window.addEventListener("paste", event => {
+    console.log(event);
     var items = event.clipboardData.items;
     var IMAGE_MIME_REGEX = /^image\/(p?jpeg|gif|png)$/i;
     for (var i = 0; i < items.length; i++) {
-        if (IMAGE_MIME_REGEX.test(items[i].type)) {
-            read_image(items[i].getAsFile());
-            return;
-        }
+      if (IMAGE_MIME_REGEX.test(items[i].type)) {
+        read_image(items[i].getAsFile());
+        return;
+      }
     }
-    console.log('No Image')
-})
+    console.log("No Image");
+  });
 
-document.getElementById("source").addEventListener('change', (event)=>{
-    read_image(event.target.files[0])
-}, false)
-let source = null
-let canvas = document.getElementById("canvas")
-function read_image(file){
-    let reader = new FileReader()
-    var image = new Image()
-    reader.addEventListener("load", (e)=>{
-        document.getElementById("source_preview").src = reader.result
-        image.src = reader.result
-        source = reader.result
-    })
-    image.addEventListener("load", (e)=>{
-        canvas.width = image.width
-        canvas.height = image.height
-        let context = canvas.getContext('2d')
-        context.drawImage(image, 0, 0)
-    })
-    reader.readAsDataURL(file)
-}
-canvas.addEventListener("click", (e)=>{
-    console.log(e)
-    let context = canvas.getContext('2d')
+  document.getElementById("source").addEventListener(
+    "change",
+    event => {
+      read_image(event.target.files[0]);
+    },
+    false
+  );
+  let source = null;
+  let canvas = document.getElementById("canvas");
+  function read_image(file) {
+    let reader = new FileReader();
+    var image = new Image();
+    reader.addEventListener("load", e => {
+      document.getElementById("source_preview").src = reader.result;
+      image.src = reader.result;
+      source = reader.result;
+    });
+    image.addEventListener("load", e => {
+      canvas.width = image.width;
+      canvas.height = image.height;
+      let context = canvas.getContext("2d");
+      context.drawImage(image, 0, 0);
+    });
+    reader.readAsDataURL(file);
+  }
+  canvas.addEventListener("click", e => {
+    console.log(e);
+    let context = canvas.getContext("2d");
     var rect = canvas.getBoundingClientRect();
-    point(e.pageX - rect.left, e.pageY - rect.top, context)
-})
+    point(e.pageX - rect.left, e.pageY - rect.top, context);
+  });
 
-function point(x, y, context){
-    console.log(x, y)
+  function point(x, y, context) {
+    console.log(x, y);
     context.beginPath();
-    if(document.getElementById("brush").checked == true){
-        context.fillStyle = 'red';
-    }else{
-        context.fillStyle = 'blue';
+    if (document.getElementById("brush").checked == true) {
+      context.fillStyle = "red";
+    } else {
+      context.fillStyle = "blue";
     }
     context.arc(x, y, 20, 0, 2 * Math.PI, true);
     context.fill();
-}
+  }
 
-document.getElementById("upload_button").addEventListener('click', (event)=>{
-    console_log("OK")
+  document.getElementById("upload_button").addEventListener("click", event => {
+    console_log("OK");
     postData("https://bot.jiang00.top/api/mqtt", {
-        "topic": "image",
-        "source": source,
-        "mask": canvas.toDataURL()
+      topic: "image",
+      source: source,
+      mask: canvas.toDataURL()
+    });
+  });
+  var task_id = null;
+  var timer = null;
+  function postData(url, data) {
+    // Default options are marked with *
+    return fetch(url, {
+      body: JSON.stringify(data), // must match 'Content-Type' header
+      headers: {
+        "content-type": "application/json"
+      },
+      method: "POST", // *GET, POST, PUT, DELETE, etc.
+      mode: "cors"
     })
-})
+      .then(response => response.json()) // parses response to JSON
+      .catch(error => console.error("Error:", error))
+      .then(response => {
+        console.log("Success:", response);
+        task_id = response["task_id"];
+        if(timer==null){
+            timer = setInterval(2000, get_result)
+            console_log("启动任务了")
+        }
+        
+      });
+  }
 
-function postData(url, data) {
-  // Default options are marked with *
-  return fetch(url, {
-    body: JSON.stringify(data), // must match 'Content-Type' header
-    headers: {
-      'content-type': 'application/json'
-    },
-    method: 'POST', // *GET, POST, PUT, DELETE, etc.
-    mode: 'cors'
-  })
-  .then(response => response.json()) // parses response to JSON
-  .catch(error => console.error('Error:', error))
-  .then(response => console.log('Success:', response));
-}
+  function get_result() {
+    fetch("https://bot.jiang00.top/api/data/" + task_id + "-result")
+      .then(response => response.json()) // parses response to JSON
+      .catch(error => console.error("Error:", error))
+      .then(response => {
+        console.log("Success:", response);
+        if(response['result']){
+            document.getElementById("source_preview").src = response['result']
+            clearInterval(timer);
+            timer = null
+        }   
+      });
+  }
 </script>
