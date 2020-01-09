@@ -3,10 +3,11 @@
 <input type="file" id="mask" />
 <input type="button" id="upload_button" value="test" />
 <h3>绘制mask</h3>
-<img id="source_preview" src="" height="200" alt="Image preview.../" />
+<img id="source_preview" src="" height="300" alt="Image preview.../" />
 <input type="checkbox" id="brush" />red
 <canvas id="canvas"></canvas>
 <pre id="console"></pre>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <script>
   function console_log(string) {
     console.log(string);
@@ -96,7 +97,7 @@
         console.log("Success:", response);
         task_id = response["task_id"];
         if(timer==null){
-            timer = setInterval(2000, get_result)
+            timer = setInterval(get_result, 2000)
             console_log("启动任务了")
         }
         
@@ -116,4 +117,29 @@
         }   
       });
   }
+
+
+// 连接选项
+const client = mqtt.connect('wss://mqtt.kf.webot.ai/mqtt')
+
+client.on('reconnect', (error) => {
+    console.log('正在重连:', error)
+})
+
+client.on('error', (error) => {
+    console.log('连接失败:', error)
+})
+
+client.on('connect', (e) => {
+    console.log('成功连接服务器')
+    // 订阅一个主题
+    client.subscribe('image', { qos: 1 }, (error) => {
+        if (!error) {
+            console.log('订阅成功')
+        }
+    })
+})
+client.on('message', (topic, message) => {
+    console.log('收到来自', topic, '的消息', message.toString())
+})
 </script>
